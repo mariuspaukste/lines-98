@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Lines 98</title>
+<style>
+  :root {
+    --bg: #1d2330;
+    --panel: #2a3242;
+    --cell: #c9cdd4;
+    --cell-dark: #9ea4ae;
+    --cell-light: #eef0f3;
+    --text: #e8ebf0;
+    --muted: #9aa3b2;
+    --accent: #ffcf4a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #2c3548 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px; user-select: none;
+  }
+  h1 { margin: 4px 0 10px; font-size: 22px; letter-spacing: 2px; font-weight: 800; }
+  h1 span { color: var(--accent); }
+  .wrap { width: min(94vw, 520px); }
+  .hud {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    background: var(--panel); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .stat { font-variant-numeric: tabular-nums; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .stat .value { font-size: 24px; font-weight: 700; font-family: "Courier New", monospace; color: #ff5b4a; text-shadow: 0 0 6px rgba(255,91,74,.5); }
+  .stat.right { text-align: right; }
+  .next { display: flex; gap: 6px; padding: 6px 10px; background: #1a1f2a; border-radius: 8px; }
+  .next .ball { width: 24px; height: 24px; position: static; transform: none; }
+  .board {
+    display: grid; grid-template-columns: repeat(9, 1fr);
+    gap: 0; aspect-ratio: 1; width: 100%;
+    background: var(--cell-dark); padding: 3px; border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  }
+  .cell {
+    position: relative; background: var(--cell);
+    border-top: 2px solid var(--cell-light); border-left: 2px solid var(--cell-light);
+    border-right: 2px solid var(--cell-dark); border-bottom: 2px solid var(--cell-dark);
+    cursor: pointer;
+  }
+  .cell.path { background: #d8dce2; }
+  .cell.blocked { animation: shake .25s; }
+  @keyframes shake { 25% { transform: translateX(-3px);} 75% { transform: translateX(3px);} }
+  .ball {
+    position: absolute; left: 50%; top: 50%;
+    width: 76%; height: 76%; border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: inset -3px -4px 6px rgba(0,0,0,.35), 1px 2px 3px rgba(0,0,0,.3);
+    transition: width .18s, height .18s;
+  }
+  .ball.seed { width: 30%; height: 30%; opacity: .9; }
+  .ball.selected { animation: bounce .5s ease-in-out infinite alternate; }
+  @keyframes bounce {
+    from { transform: translate(-50%, -50%) scale(1, 1); }
+    to { transform: translate(-50%, -66%) scale(.95, 1.05); }
+  }
+  .ball.pop { animation: pop .3s ease-in forwards; }
+  @keyframes pop { to { transform: translate(-50%,-50%) scale(1.4); opacity: 0; } }
+  .ball.grow { animation: grow .22s ease-out; }
+  @keyframes grow { from { transform: translate(-50%,-50%) scale(.3); } }
+  .c0 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #ff6b6b 22%, #c0141d 70%, #6e0a10); }
+  .c1 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #6bff8a 22%, #12a33a 70%, #075a1d); }
+  .c2 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #6ba8ff 22%, #1347c4 70%, #0a246e); }
+  .c3 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #fff36b 22%, #d4b800 70%, #6e5f00); }
+  .c4 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #ff8cf2 22%, #b8189e 70%, #5e0a51); }
+  .c5 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #7af6ff 22%, #0aa7b8 70%, #04535c); }
+  .c6 { background: radial-gradient(circle at 32% 28%, #fff 0 8%, #c58a5a 22%, #7a4318 70%, #3a1e08); }
+  .controls { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: var(--panel); color: var(--text); border: 1px solid #3c465a;
+    border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #343e52; }
+  button:disabled { opacity: .4; cursor: default; }
+  .help { color: var(--muted); font-size: 13px; text-align: center; margin-top: 10px; line-height: 1.5; }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,13,20,.75);
+    display: none; align-items: center; justify-content: center; z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .dialog {
+    background: var(--panel); border-radius: 14px; padding: 24px 28px; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5); min-width: 240px;
+  }
+  .dialog h2 { margin: 0 0 8px; }
+  .dialog p { margin: 6px 0 16px; color: var(--muted); }
+  .toast {
+    position: fixed; left: 50%; top: 40%; transform: translate(-50%,-50%);
+    font-size: 34px; font-weight: 800; color: var(--accent); pointer-events: none;
+    text-shadow: 0 2px 8px rgba(0,0,0,.6); opacity: 0;
+  }
+  .toast.show { animation: float 0.9s ease-out; }
+  @keyframes float {
+    0% { opacity: 0; transform: translate(-50%,-30%); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%,-110%); }
+  }
+</style>
+</head>
+<body>
+  <h1>LINES <span>98</span></h1>
+  <div class="wrap">
+    <div class="hud">
+      <div class="stat"><div class="label">Best</div><div class="value" id="best">0</div></div>
+      <div class="next" id="next" title="Next balls"></div>
+      <div class="stat right"><div class="label">Score</div><div class="value" id="score">0</div></div>
+    </div>
+    <div class="board" id="board"></div>
+    <div class="controls">
+      <button id="undo">↶ Undo</button>
+      <button id="newgame">New game</button>
+    </div>
+    <div class="help">Tap a ball, then tap an empty cell to move it. A ball needs a clear path to get there.
+      Line up 5 or more of the same colour (across, down or diagonally) to clear them.
+      If you don't clear a line, 3 new balls appear.</div>
+  </div>
+
+  <div class="overlay" id="over">
+    <div class="dialog">
+      <h2>Game over</h2>
+      <p id="finalText"></p>
+      <button id="again">Play again</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const N = 9, COLORS = 7, SPAWN = 3, LINE = 5;
+  const boardEl = document.getElementById('board');
+  const nextEl = document.getElementById('next');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const undoBtn = document.getElementById('undo');
+  const overEl = document.getElementById('over');
+  const toastEl = document.getElementById('toast');
+
+  let grid, seeds, score, selected, busy, history;
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('lines98-best') || '0', 10) || 0; } catch (e) {}
+
+  const cells = [];
+  for (let i = 0; i < N * N; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.addEventListener('click', () => onCell(i));
+    boardEl.appendChild(c);
+    cells.push(c);
+  }
+
+  const rnd = n => Math.floor(Math.random() * n);
+  const empties = () => grid.reduce((a, v, i) => (v < 0 ? (a.push(i), a) : a), []);
+
+  function pickSeeds() {
+    // seeds: [{pos, color}] — shown as small balls where the next ones will land
+    const free = empties().filter(i => !seeds.some(s => s.pos === i));
+    const out = [];
+    for (let k = 0; k < SPAWN && free.length; k++) {
+      const j = rnd(free.length);
+      out.push({ pos: free.splice(j, 1)[0], color: rnd(COLORS) });
+    }
+    return out;
+  }
+
+  function newGame() {
+    grid = new Array(N * N).fill(-1);
+    seeds = [];
+    score = 0; selected = -1; busy = false; history = [];
+    // start with 5 balls on the board, like the original
+    for (let k = 0; k < 5; k++) {
+      const f = empties();
+      grid[f[rnd(f.length)]] = rnd(COLORS);
+    }
+    seeds = pickSeeds();
+    overEl.classList.remove('show');
+    render();
+  }
+
+  function snapshot() {
+    history.push({ grid: grid.slice(), seeds: seeds.map(s => ({ ...s })), score });
+    if (history.length > 1) history.shift(); // single-step undo
+  }
+
+  function render(grown = []) {
+    for (let i = 0; i < N * N; i++) {
+      const c = cells[i];
+      c.innerHTML = '';
+      c.classList.remove('path');
+      if (grid[i] >= 0) {
+        const b = document.createElement('div');
+        b.className = 'ball c' + grid[i] + (i === selected ? ' selected' : '') + (grown.includes(i) ? ' grow' : '');
+        c.appendChild(b);
+      } else {
+        const s = seeds.find(s => s.pos === i);
+        if (s) {
+          const b = document.createElement('div');
+          b.className = 'ball seed c' + s.color;
+          c.appendChild(b);
+        }
+      }
+    }
+    nextEl.innerHTML = '';
+    seeds.forEach(s => {
+      const b = document.createElement('div');
+      b.className = 'ball c' + s.color;
+      nextEl.appendChild(b);
+    });
+    scoreEl.textContent = score;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('lines98-best', String(best)); } catch (e) {}
+    }
+    bestEl.textContent = best;
+    undoBtn.disabled = history.length === 0 || busy;
+  }
+
+  function findPath(from, to) {
+    const prev = new Array(N * N).fill(-2);
+    prev[from] = -1;
+    const q = [from];
+    while (q.length) {
+      const cur = q.shift();
+      if (cur === to) break;
+      const r = Math.floor(cur / N), c = cur % N;
+      for (const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nc < 0 || nr >= N || nc >= N) continue;
+        const ni = nr * N + nc;
+        if (prev[ni] !== -2 || grid[ni] >= 0) continue;
+        prev[ni] = cur;
+        q.push(ni);
+      }
+    }
+    if (prev[to] === -2) return null;
+    const path = [];
+    for (let p = to; p !== -1; p = prev[p]) path.unshift(p);
+    return path;
+  }
+
+  // returns set of indices that form lines of >= LINE through any of the given positions
+  function findLines(positions) {
+    const hit = new Set();
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for (const pos of positions) {
+      const color = grid[pos];
+      if (color < 0) continue;
+      const r0 = Math.floor(pos / N), c0 = pos % N;
+      for (const [dr, dc] of dirs) {
+        const line = [pos];
+        for (const s of [1, -1]) {
+          let r = r0 + dr * s, c = c0 + dc * s;
+          while (r >= 0 && c >= 0 && r < N && c < N && grid[r * N + c] === color) {
+            line.push(r * N + c);
+            r += dr * s; c += dc * s;
+          }
+        }
+        if (line.length >= LINE) line.forEach(i => hit.add(i));
+      }
+    }
+    return [...hit];
+  }
+
+  function points(n) {
+    // 5 → 10, 6 → 12+... grows faster for longer lines
+    return n * 2 + (n - LINE) * (n - LINE) * 2;
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function toast(text) {
+    toastEl.textContent = text;
+    toastEl.classList.remove('show');
+    void toastEl.offsetWidth;
+    toastEl.classList.add('show');
+  }
+
+  async function clearLines(list) {
+    list.forEach(i => { const b = cells[i].querySelector('.ball'); if (b) b.classList.add('pop'); });
+    await sleep(300);
+    list.forEach(i => (grid[i] = -1));
+    const pts = points(list.length);
+    score += pts;
+    toast('+' + pts);
+  }
+
+  async function spawn() {
+    const placed = [];
+    for (const s of seeds) {
+      let pos = s.pos;
+      if (grid[pos] >= 0) {
+        // the seed's cell got taken by a moved ball: drop it somewhere else
+        const f = empties();
+        if (!f.length) break;
+        pos = f[rnd(f.length)];
+      }
+      grid[pos] = s.color;
+      placed.push(pos);
+    }
+    seeds = [];
+    render(placed);
+    await sleep(220);
+    const lines = findLines(placed);
+    if (lines.length) {
+      await clearLines(lines);
+    }
+    if (empties().length === 0) {
+      render();
+      gameOver();
+      return;
+    }
+    seeds = pickSeeds();
+    render();
+  }
+
+  function gameOver() {
+    document.getElementById('finalText').textContent =
+      'Score: ' + score + (score >= best && score > 0 ? ' — new best!' : '  (best ' + best + ')');
+    overEl.classList.add('show');
+  }
+
+  async function onCell(i) {
+    if (busy) return;
+    if (grid[i] >= 0) {
+      selected = selected === i ? -1 : i;
+      render();
+      return;
+    }
+    if (selected < 0) return;
+    const path = findPath(selected, i);
+    if (!path) {
+      cells[i].classList.remove('blocked');
+      void cells[i].offsetWidth;
+      cells[i].classList.add('blocked');
+      return;
+    }
+    busy = true;
+    snapshot();
+    const color = grid[selected];
+    selected = -1;
+    // animate along the path
+    for (let k = 1; k < path.length; k++) {
+      grid[path[k - 1]] = -1;
+      grid[path[k]] = color;
+      render();
+      path.slice(k + 1).forEach(p => cells[p].classList.add('path'));
+      await sleep(path.length > 12 ? 25 : 40);
+    }
+    const lines = findLines([i]);
+    if (lines.length) {
+      await clearLines(lines);
+      render();
+    } else {
+      await spawn();
+    }
+    busy = false;
+    render();
+  }
+
+  undoBtn.addEventListener('click', () => {
+    if (busy || !history.length) return;
+    const h = history.pop();
+    grid = h.grid; seeds = h.seeds; score = h.score; selected = -1;
+    overEl.classList.remove('show');
+    render();
+  });
+  document.getElementById('newgame').addEventListener('click', () => { if (!busy) newGame(); });
+  document.getElementById('again').addEventListener('click', newGame);
+
+  newGame();
+})();
+</script>
+</body>
+</html>
