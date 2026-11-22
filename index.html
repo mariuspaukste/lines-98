@@ -36,8 +36,16 @@
   .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
   .stat .value { font-size: 24px; font-weight: 700; font-family: "Courier New", monospace; color: #ff5b4a; text-shadow: 0 0 6px rgba(255,91,74,.5); }
   .stat.right { text-align: right; }
-  .next { display: flex; gap: 6px; padding: 6px 10px; background: #1a1f2a; border-radius: 8px; }
+  .next {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 10px 4px; background: #1a1f2a; border: 1px solid transparent; border-radius: 8px;
+    font: inherit; color: inherit; cursor: pointer;
+  }
+  .next:hover { background: #222838; }
+  .next-balls { display: flex; gap: 6px; }
   .next .ball { width: 24px; height: 24px; position: static; transform: none; }
+  .next-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+  .next.off .next-label { color: var(--muted); }
   .board {
     display: grid; grid-template-columns: repeat(9, 1fr);
     gap: 0; aspect-ratio: 1; width: 100%;
@@ -114,7 +122,10 @@
   <div class="wrap">
     <div class="hud">
       <div class="stat"><div class="label">Best</div><div class="value" id="best">0</div></div>
-      <div class="next" id="next" title="Next balls"></div>
+      <button class="next" id="next" type="button" aria-pressed="true" title="Next balls. Tap to show or hide where they will land">
+        <div class="next-balls" id="nextBalls"></div>
+        <div class="next-label" id="hintLabel">Hints on</div>
+      </button>
       <div class="stat right"><div class="label">Score</div><div class="value" id="score">0</div></div>
     </div>
     <div class="board" id="board"></div>
@@ -141,6 +152,8 @@
   const N = 9, COLORS = 7, SPAWN = 3, LINE = 5;
   const boardEl = document.getElementById('board');
   const nextEl = document.getElementById('next');
+  const nextBallsEl = document.getElementById('nextBalls');
+  const hintLabelEl = document.getElementById('hintLabel');
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
   const undoBtn = document.getElementById('undo');
@@ -150,6 +163,9 @@
   let grid, seeds, score, selected, busy, history;
   let best = 0;
   try { best = parseInt(localStorage.getItem('lines98-best') || '0', 10) || 0; } catch (e) {}
+  // hints = the small dots on the board showing where the next balls will land
+  let hints = true;
+  try { hints = localStorage.getItem('lines98-hints') !== 'off'; } catch (e) {}
 
   const cells = [];
   for (let i = 0; i < N * N; i++) {
@@ -202,7 +218,7 @@
         const b = document.createElement('div');
         b.className = 'ball c' + grid[i] + (i === selected ? ' selected' : '') + (grown.includes(i) ? ' grow' : '');
         c.appendChild(b);
-      } else {
+      } else if (hints) {
         const s = seeds.find(s => s.pos === i);
         if (s) {
           const b = document.createElement('div');
@@ -211,12 +227,13 @@
         }
       }
     }
-    nextEl.innerHTML = '';
+    nextBallsEl.innerHTML = '';
     seeds.forEach(s => {
       const b = document.createElement('div');
       b.className = 'ball c' + s.color;
-      nextEl.appendChild(b);
+      nextBallsEl.appendChild(b);
     });
+    renderHintState();
     scoreEl.textContent = score;
     if (score > best) {
       best = score;
@@ -224,6 +241,12 @@
     }
     bestEl.textContent = best;
     undoBtn.disabled = history.length === 0 || busy;
+  }
+
+  function renderHintState() {
+    nextEl.classList.toggle('off', !hints);
+    nextEl.setAttribute('aria-pressed', String(hints));
+    hintLabelEl.textContent = hints ? 'Hints on' : 'Hints off';
   }
 
   function findPath(from, to) {
@@ -374,6 +397,12 @@
     grid = h.grid; seeds = h.seeds; score = h.score; selected = -1;
     overEl.classList.remove('show');
     render();
+  });
+  nextEl.addEventListener('click', () => {
+    hints = !hints;
+    try { localStorage.setItem('lines98-hints', hints ? 'on' : 'off'); } catch (e) {}
+    // mid-move the animation redraws the board itself, so only update the button then
+    if (busy) renderHintState(); else render();
   });
   document.getElementById('newgame').addEventListener('click', () => { if (!busy) newGame(); });
   document.getElementById('again').addEventListener('click', newGame);
